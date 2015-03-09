@@ -17,7 +17,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 
 public class NosaraClient {
@@ -106,30 +105,29 @@ public class NosaraClient {
             return;
         }
         synchronized (mMainEventsQueue) {
+            if (mMainEventsQueue.size() == 0) {
+                return;
+            }
             try {
                 JSONArray events = new JSONArray();
                 LinkedList<NosaraEvent> currentEventsList = new LinkedList<>(); // events we're sending on the wire
+
+                // Create common props here. Then check later at "single event" layer if one of these props changed.
+                JSONObject commonProps = NosaraMessageBuilder.createRequestCommonPropsJSONObject(deviceInformation, mUserProperties);
+
+                // Create single event obj here
                 for (NosaraEvent singleEvent : mMainEventsQueue) {
-                    JSONObject singleEventJSON = NosaraMessageBuilder.getJSONObject(singleEvent);
+                    JSONObject singleEventJSON = NosaraMessageBuilder.createEventJSONObject(singleEvent, commonProps);
                     if (singleEventJSON != null) {
                         events.put(singleEventJSON);
                         currentEventsList.add(singleEvent);
                     }
                 }
 
-                if (mUserProperties != null && mUserProperties.length() > 0) {
-                    // Add to commonProps as well
-                }
-
                 if (currentEventsList.size() > 0) {
                     JSONObject requestJSONObject = new JSONObject();
                     requestJSONObject.put("events", events);
-
-                    // Add here common props. ex: Device Info that are unlikely to change over time.
-                    JSONObject commonProps = new JSONObject();
-                    NosaraMessageBuilder.unfolderProperties(deviceInformation.getImmutableDeviceInfo(), "device_info_", commonProps);
                     requestJSONObject.put("commonProps", commonProps);
-
                     String path = "tracks/record";
                     NosaraRestListener nosaraRestListener = new NosaraRestListener(currentEventsList);
                     NosaraRestRequest request = post(path, requestJSONObject, nosaraRestListener, nosaraRestListener);
