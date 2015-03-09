@@ -14,7 +14,7 @@ public class NosaraEvent implements Serializable {
     private final long mTimeStamp;
     private final NosaraClient.NosaraUserType mUserType;
 
-    private int mRetryTime = 0;
+    private int mRetryCount = 0;
 
     private JSONObject mUserProperties;
     private JSONObject mDeviceInfo;
@@ -43,9 +43,8 @@ public class NosaraEvent implements Serializable {
         return mTimeStamp;
     }
 
-
-    public int getRetryTime() {
-        return mRetryTime;
+    public int getRetryCount() {
+        return mRetryCount;
     }
 
     public String getUserAgent() {
@@ -53,14 +52,7 @@ public class NosaraEvent implements Serializable {
     }
 
     public void addRetryCount() {
-        mRetryTime += 1;
-    }
-
-
-    public boolean isStillValid() {
-        // Should we discard events > 5 days?
-        // Should we count the retry times?
-        return true;
+        mRetryCount+= 1;
     }
 
     public void setUserProperties(JSONObject userProperties) {

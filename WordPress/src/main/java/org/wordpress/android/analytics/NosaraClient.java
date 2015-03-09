@@ -250,7 +250,7 @@ public class NosaraClient {
             // Loop on events and keep those events that we must re-enqueue
             LinkedList<NosaraEvent> mustKeepEventsList = new LinkedList(); // events we're re-enqueuing
             for (NosaraEvent singleEvent : mEventsList) {
-                if (singleEvent.isStillValid()) {
+                if (isStillValid(singleEvent)) {
                     singleEvent.addRetryCount();
                     mustKeepEventsList.add(singleEvent);
                 }
@@ -262,5 +262,11 @@ public class NosaraClient {
                 }
             }
         }
+    }
+
+    private boolean isStillValid(NosaraEvent event) {
+        // Should we discard events > 5 days? See event.getTimeStamp()
+        // Should we consider the retry count?
+        return true;
     }
 }
