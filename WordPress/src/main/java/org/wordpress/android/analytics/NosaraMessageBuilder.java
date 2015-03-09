@@ -9,12 +9,16 @@ import java.util.Iterator;
 
 class NosaraMessageBuilder {
 
+    private static final String USER_INFO_PREFIX = "user_info_";
+    private static final String DEVICE_INFO_PREFIX = "device_info_";
+
+
     public static synchronized JSONObject createRequestCommonPropsJSONObject(NosaraDeviceInformation deviceInformation,
                                                                              JSONObject userProperties) {
         JSONObject commonProps = new JSONObject();
-        unfolderProperties(deviceInformation.getImmutableDeviceInfo(), "device_info_", commonProps);
-        unfolderProperties(deviceInformation.getMutableDeviceInfo(), "device_info_", commonProps);
-        unfolderProperties(userProperties, "user_info_", commonProps);
+        unfolderProperties(deviceInformation.getImmutableDeviceInfo(), DEVICE_INFO_PREFIX, commonProps);
+        unfolderProperties(deviceInformation.getMutableDeviceInfo(), DEVICE_INFO_PREFIX, commonProps);
+        unfolderProperties(userProperties, USER_INFO_PREFIX, commonProps);
         return commonProps;
     }
 
@@ -33,8 +37,8 @@ class NosaraMessageBuilder {
                 eventJSON.put("_ul", event.getUser());
             }
 
-            unfolderPropertiesNotAvailableInCommon(event.getUserProperties(), "user_info_", eventJSON, commonProps);
-            unfolderPropertiesNotAvailableInCommon(event.getDeviceInfo(), "device_info_", eventJSON, commonProps);
+            unfolderPropertiesNotAvailableInCommon(event.getUserProperties(), USER_INFO_PREFIX, eventJSON, commonProps);
+            unfolderPropertiesNotAvailableInCommon(event.getDeviceInfo(), DEVICE_INFO_PREFIX, eventJSON, commonProps);
 
            return eventJSON;
         } catch (JSONException err) {
@@ -43,7 +47,8 @@ class NosaraMessageBuilder {
         }
     }
 
-
+    // Nosara only strings property values. Don't convert JSON objs by calling toString()
+    // otherwise they will be likely un-queryable
     private static void unfolderPropertiesNotAvailableInCommon(JSONObject objectToFlatten, String flattenPrefix,
                                                                  JSONObject targetJSONObject, JSONObject commonProps) {
         if (objectToFlatten == null || targetJSONObject == null) {
@@ -71,7 +76,7 @@ class NosaraMessageBuilder {
                 String valueStringInCommons = null;
                 // Check if the same key/value is already available in common props
                 if (commonProps != null && commonProps.has(flattenKey)) {
-                    Object valueInCommons = commonProps.get(key);
+                    Object valueInCommons = commonProps.get(flattenKey);
                     if (valueInCommons != null) {
                         valueStringInCommons = String.valueOf(valueInCommons);
                     }
@@ -91,31 +96,6 @@ class NosaraMessageBuilder {
     // Nosara only strings property values. Don't convert JSON objs by calling toString()
     // otherwise they will be likely un-queryable
     private static void unfolderProperties(JSONObject objectToFlatten, String flattenPrefix, JSONObject targetJSONObject) {
-        if (objectToFlatten == null || targetJSONObject == null) {
-            return;
-        }
-
-        if (flattenPrefix == null) {
-            Log.w(NosaraClient.LOGTAG, " Unfolding props with an empty key. This could be an error!");
-            flattenPrefix = "";
-        }
-
-        Iterator<String> iter = objectToFlatten.keys();
-        while (iter.hasNext()) {
-            String key = iter.next();
-            try {
-                Object value = objectToFlatten.get(key);
-                String valueString;
-                if (value != null) {
-                    valueString = String.valueOf(value);
-                } else {
-                    valueString = "";
-                }
-                targetJSONObject.put(String.valueOf(flattenPrefix + key).toLowerCase(), valueString);
-            } catch (JSONException e) {
-                // Something went wrong!
-                Log.e(NosaraClient.LOGTAG, "Cannot write the flatten JSON representation of this object", e);
-            }
-        }
+        unfolderPropertiesNotAvailableInCommon(objectToFlatten, flattenPrefix, targetJSONObject, null);
     }
 }
