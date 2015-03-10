@@ -148,11 +148,15 @@ public class AnalyticsTrackerNosara implements AnalyticsTracker.Tracker {
             return;
         }
 */
-        String user = mAnonID != null ? mAnonID : mWpcomUserName;
+
+        if (shouldGenerateAnonID()) {
+            mAnonID = getNewAnonID();
+        }
+
+        final String user = mAnonID != null ? mAnonID : mWpcomUserName;
         NosaraClient.NosaraUserType userType = mAnonID != null ?
                 NosaraClient.NosaraUserType.ANON :
                 NosaraClient.NosaraUserType.WPCOM;
-
         mNosaraClient.track(EVENTS_PREFIX + "danilotest", user, userType);
     }
 
@@ -165,11 +169,15 @@ public class AnalyticsTrackerNosara implements AnalyticsTracker.Tracker {
         refreshMetadata();
     }
 
+    private boolean shouldGenerateAnonID() {
+        return (mAnonID == null && mWpcomUserName == null);
+    }
+
     private String getNewAnonID() {
         String uuid = UUID.randomUUID().toString();
         String[] uuidSplitted = uuid.split("-");
         StringBuilder builder = new StringBuilder();
-        for(String currentPart : uuidSplitted) {
+        for (String currentPart : uuidSplitted) {
             builder.append(currentPart);
         }
         uuid = builder.toString();
@@ -198,16 +206,15 @@ public class AnalyticsTrackerNosara implements AnalyticsTracker.Tracker {
             // properties.put("username", username);
             mWpcomUserName = username;
 
-            // should we re-unify the user?
+            // Re-unify the user
             if (mAnonID != null) {
-                // TODO call the _aliasUser event here!!!
-
+                mNosaraClient.trackAliasUser(mWpcomUserName, mAnonID);
                 mAnonID = null;
             }
         } else {
             // Not wpcom connected. Check if mAnon is already present
             mWpcomUserName = null;
-            if (mAnonID == null) {
+            if (shouldGenerateAnonID()) {
                 mAnonID = getNewAnonID();
             }
         }

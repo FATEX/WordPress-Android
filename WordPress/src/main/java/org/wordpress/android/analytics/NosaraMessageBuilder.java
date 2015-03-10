@@ -12,6 +12,35 @@ class NosaraMessageBuilder {
     private static final String USER_INFO_PREFIX = "user_info_";
     private static final String DEVICE_INFO_PREFIX = "device_info_";
 
+    private static final String EVENT_NAME_KEY = "_en";
+    private static final String USER_AGENT_NAME_KEY = "_via_ua";
+    private static final String TIMESTAMP_KEY = "_ts";
+    private static final String USER_TYPE_KEY = "_ut";
+    private static final String USER_TYPE_ANON= "anon";
+    private static final String USER_ID_KEY = "_ui";
+    private static final String USER_LOGIN_NAME_KEY = "_ul";
+
+    public static final String ALIAS_USER_EVENT_NAME = "_aliasUser";
+
+    public static synchronized boolean isReservedKeyword(String keyToTest) {
+        String keyToTestLowercase = keyToTest.toLowerCase();
+        if (keyToTestLowercase.equals(EVENT_NAME_KEY) ||
+                keyToTestLowercase.equals(USER_AGENT_NAME_KEY) ||
+                keyToTestLowercase.equals(TIMESTAMP_KEY) ||
+                keyToTestLowercase.equals(USER_TYPE_KEY) ||
+                keyToTestLowercase.equals(USER_ID_KEY) ||
+                keyToTestLowercase.equals(USER_LOGIN_NAME_KEY)
+                ) {
+            return true;
+        }
+
+        if (keyToTestLowercase.startsWith(USER_INFO_PREFIX) ||
+                keyToTestLowercase.startsWith(DEVICE_INFO_PREFIX)) {
+            return true;
+        }
+
+        return false;
+    }
 
     public static synchronized JSONObject createRequestCommonPropsJSONObject(NosaraDeviceInformation deviceInformation,
                                                                              JSONObject userProperties) {
@@ -25,20 +54,30 @@ class NosaraMessageBuilder {
     public static synchronized JSONObject createEventJSONObject(NosaraEvent event, JSONObject commonProps) {
         try {
             JSONObject eventJSON = new JSONObject();
-            eventJSON.put("_en", event.getEventName());
+            eventJSON.put(EVENT_NAME_KEY, event.getEventName());
 
-            eventJSON.put("_via_ua", event.getUserAgent());
-            eventJSON.put("_ts", event.getTimeStamp());
+            eventJSON.put(USER_AGENT_NAME_KEY, event.getUserAgent());
+            eventJSON.put(TIMESTAMP_KEY, event.getTimeStamp());
 
             if (event.getUserType() == NosaraClient.NosaraUserType.ANON) {
-                eventJSON.put("_ut", "anon");
-                eventJSON.put("_ui", event.getUser());
+                eventJSON.put(USER_TYPE_KEY, USER_TYPE_ANON);
+                eventJSON.put(USER_ID_KEY, event.getUser());
             } else {
-                eventJSON.put("_ul", event.getUser());
+                eventJSON.put(USER_LOGIN_NAME_KEY, event.getUser());
+                // no need to put the user type key here. default wpcom is used on the server.
             }
 
             unfolderPropertiesNotAvailableInCommon(event.getUserProperties(), USER_INFO_PREFIX, eventJSON, commonProps);
             unfolderPropertiesNotAvailableInCommon(event.getDeviceInfo(), DEVICE_INFO_PREFIX, eventJSON, commonProps);
+            unfolderProperties(event.getCustomEventProperties(), "", eventJSON);
+
+            // FIXME: Property names should also be lowercase and use underscores instead of dashes
+            // but for a particular event/prop this is not the case
+            if (event.getEventName().equals(ALIAS_USER_EVENT_NAME)) {
+                String anonID = eventJSON.getString("anonid");
+                eventJSON.put("anonId", anonID);
+                eventJSON.remove("anonid");
+            }
 
            return eventJSON;
         } catch (JSONException err) {
@@ -56,7 +95,7 @@ class NosaraMessageBuilder {
         }
 
         if (flattenPrefix == null) {
-            Log.w(NosaraClient.LOGTAG, " Unfolding props with an empty key. This could be an error!");
+            Log.w(NosaraClient.LOGTAG, " Unfolding props with an empty key. Make sure the keys are unique!");
             flattenPrefix = "";
         }
 

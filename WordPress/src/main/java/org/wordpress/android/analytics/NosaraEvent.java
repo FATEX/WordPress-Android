@@ -1,5 +1,8 @@
 package org.wordpress.android.analytics;
 
+import android.util.Log;
+
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.Serializable;
@@ -18,6 +21,7 @@ public class NosaraEvent implements Serializable {
 
     private JSONObject mUserProperties;
     private JSONObject mDeviceInfo;
+    private JSONObject mCustomEventProps;
 
     public NosaraEvent(String mEventName, String userID, NosaraClient.NosaraUserType uType, String userAgent, long timeStamp) {
         this.mEventName = mEventName;
@@ -64,11 +68,47 @@ public class NosaraEvent implements Serializable {
     }
 
     public JSONObject getUserProperties() {
-
         return mUserProperties;
     }
 
     public JSONObject getDeviceInfo() {
         return mDeviceInfo;
+    }
+
+    public JSONObject getCustomEventProperties() {
+        return mCustomEventProps;
+    }
+
+    public boolean addCustomEventProperty(String key, Object value) {
+        if (NosaraStringUtils.isBlank(key)) {
+            Log.e(LOGTAG, "Cannot add a property that has an empty key to the event");
+            return false;
+        }
+        if (this.mCustomEventProps == null) {
+            mCustomEventProps = new JSONObject();
+        }
+
+        // Emit a warning if the property isn't lowercase.
+        if (!key.toLowerCase().equals(key)) {
+            Log.w(LOGTAG, "Properties should have lowercase name: "+ key);
+        }
+
+        if (NosaraMessageBuilder.isReservedKeyword(key)) {
+            Log.e(LOGTAG, "Cannot add the property: " + key + " to the event. It's a reserved keyword.");
+            return false;
+        }
+        try {
+            String valueString;
+            if (value != null) {
+                valueString = String.valueOf(value);
+            } else {
+                valueString = "";
+            }
+            mCustomEventProps.put(key, valueString);
+        } catch (JSONException e) {
+            Log.e(LOGTAG, "Cannot add the property to the event");
+            return false;
+        }
+        return true;
     }
 }

@@ -17,6 +17,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 
 public class NosaraClient {
@@ -26,7 +27,7 @@ public class NosaraClient {
     protected static final String DEFAULT_USER_AGENT = "Nosara Client for Android";
     protected static final String NOSARA_REST_API_ENDPOINT_URL_V1_1 = "https://public-api.wordpress.com/rest/v1.1/";
 
-    public static enum NosaraUserType {ANON, WPCOM }
+    public static enum NosaraUserType {ANON, WPCOM}
 
     /**
      * Socket timeout in milliseconds for rest requests
@@ -150,6 +151,10 @@ public class NosaraClient {
 */
 
     public void track(String eventName, String user, NosaraUserType userType) {
+        this.track(eventName, null, user, userType);
+    }
+
+    public void track(String eventName, JSONObject customProps, String user, NosaraUserType userType) {
         NosaraEvent event = new NosaraEvent(
                 eventName,
                 user,
@@ -157,7 +162,6 @@ public class NosaraClient {
                 getUserAgent(),
                 System.currentTimeMillis()
         );
-
 
         JSONObject deviceInfo = deviceInformation.getMutableDeviceInfo();
         if (deviceInfo != null && deviceInfo.length() > 0) {
@@ -168,11 +172,38 @@ public class NosaraClient {
             event.setUserProperties(mUserProperties);
         }
 
+        if (customProps != null && customProps.length() > 0) {
+            Iterator<String> iter = customProps.keys();
+            while (iter.hasNext()) {
+                String key = iter.next();
+                try {
+                    Object value = customProps.get(key);
+                    event.addCustomEventProperty(key, value);
+                } catch (JSONException e) {
+                    Log.e(LOGTAG, "Cannot add the property '" + key + "' to the event");
+                }
+            }
+        }
+
         synchronized (mMainEventsQueue) {
             mMainEventsQueue.add(event);
             mMainEventsQueue.notify();
         }
     }
+
+
+    public void trackAliasUser(String user, String anonUser) {
+        JSONObject customProps = new JSONObject();
+        try {
+            customProps.put("anonId", anonUser);
+        } catch (JSONException e) {
+            Log.e(LOGTAG, "Cannot track _aliasUser with the following anonUser " + anonUser);
+            return;
+        }
+
+        track(NosaraMessageBuilder.ALIAS_USER_EVENT_NAME, customProps, user, NosaraClient.NosaraUserType.WPCOM);
+    }
+
 
     /* private NosaraRestRequest get(String path, Listener<JSONObject> listener, ErrorListener errorListener) {
          return makeRequest(Method.GET, getAbsoluteURL(path), null, listener, errorListener);
